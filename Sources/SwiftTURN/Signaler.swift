@@ -36,7 +36,7 @@ public class Signaler {
 		guard let rlstr = UnsafePointer<Int8>(relay.cString(using: .utf8)) else { return }
 		guard let rxstr = UnsafePointer<Int8>(reflexive.cString(using: .utf8)) else { return }
 		guard let lstr = UnsafePointer<Int8>(local.cString(using: .utf8)) else { return }
-		guard let regUrl = String(format: "http://%s/register/%s/%s/%s/%s/", hstr, istr, rlstr, rxstr, lstr)
+		let regUrl = String(format: "http://%s/register/%s/%s/%s/%s/", hstr, istr, rlstr, rxstr, lstr)
 #else
 		let regUrl = String(format: "http://%@/register/%@/%@/%@/%@/", host, identifier, relay, reflexive, local)
 #endif
