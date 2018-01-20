@@ -10,12 +10,14 @@ import Dispatch
 
 class HeadlessService: PeerEventProtocol, SignalerEventProtocol {
 	
-	public var active = false
-	
 	private var relayClient: Peer?
 	private var meetingRoom: Signaler?
 	
-
+	public init() {
+		
+		connectAsPeer()
+	}
+	
 	func allocated() {
 		guard let address = relayClient?.address else {
 			return
@@ -43,10 +45,6 @@ class HeadlessService: PeerEventProtocol, SignalerEventProtocol {
 		print("discover failed \(identifier)")
 	}
 
-	public init() {
-		
-		connectAsPeer()
-	}
 	
 	func connectAsPeer() {
 		do {
@@ -58,10 +56,10 @@ class HeadlessService: PeerEventProtocol, SignalerEventProtocol {
 		}
 	}
 
-	
-	public func runloop() {
+	public func loop() {
 		
-		guard let client = relayClient else {
+		guard let client = relayClient, client.active else {
+			print("Error: no client")
 			return
 		}
 		
@@ -74,6 +72,12 @@ class HeadlessService: PeerEventProtocol, SignalerEventProtocol {
 				}
 			} while !exiting
 		}
+	}
+	
+	public func runloop() {
+		DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(100), execute: {
+			self.loop()
+		})
 	}
 }
 
