@@ -60,14 +60,14 @@ public class SocketAddress {
 	}
 	
 	
-	public lazy var sockaddr: sockaddr_in = {
+	public var sockaddr: sockaddr_in {
 		var sockaddr = sockaddr_in()
 		sockaddr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
 		sockaddr.sin_family = sa_family_t(AF_INET)
 		sockaddr.sin_port = in_port_t(port.bigEndian)
 		sockaddr.sin_addr = in_addr(s_addr: address)
 		return sockaddr
-	}()
+	}
 	
 	public var sockaddrLen: socklen_t {
 		return socklen_t(MemoryLayout<sockaddr_in>.size)

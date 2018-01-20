@@ -16,7 +16,7 @@ public class TURNClient {
 	public var transactionId = Data([UInt8](UUID().uuidString.utf8)[0..<12])
 	
 	/// For sending refresh packets periodically
-	private var refreshTimeout = TimeInterval(STUNDesiredLifetime)
+	private var refreshTimeout = STUNDesiredLifetime
 	
 	/// Connection addresses
 	var relayedAddress: SocketAddress?		// TURN server address
@@ -44,7 +44,7 @@ public class TURNClient {
 	
 	public func start() {
 		
-		var refreshTime = Date(timeIntervalSinceNow: -refreshTimeout)
+		var refreshTime = Date(timeIntervalSinceNow: -TimeInterval(refreshTimeout))
 
 		DispatchQueue.global().async {
 		
@@ -52,7 +52,7 @@ public class TURNClient {
 				
 				// refresh if needed
 				if refreshTime <= Date() {
-					refreshTime = Date(timeIntervalSinceNow: self.refreshTimeout)
+					refreshTime = Date(timeIntervalSinceNow: TimeInterval(self.refreshTimeout))
 					self.allocate(lifetime: STUNDesiredLifetime)
 				}
 				
@@ -110,7 +110,7 @@ public class TURNClient {
 
 		case .allocate:
 			let alloc = AllocateResponse(body)
-			refreshTimeout = TimeInterval(max(alloc.lifetime - 60, 60))
+			refreshTimeout = max(alloc.lifetime - 60, 60)
 			relayedAddress = alloc.relayedAddress
 			mappedAddress = alloc.mappedAddress
 			print("Allocate success from \"\(alloc.software ?? "Unknown")\"")
@@ -129,7 +129,7 @@ public class TURNClient {
 
 		case .refresh:
 			let refresh = RefreshResponse(body)
-			refreshTimeout = TimeInterval(max(refresh.lifetime - 60, 60))
+			refreshTimeout = max(refresh.lifetime - 60, 60)
 			
 		case .connect:
 			let connect = ConnectResponse(body)
