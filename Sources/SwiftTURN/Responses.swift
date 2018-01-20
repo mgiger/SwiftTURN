@@ -126,22 +126,21 @@ class BindErrorResponse: Response {
 
 class AllocateResponse: Response {
 	
-	var relayedAddress: SocketAddress?
-	var mappedAddress: SocketAddress?
+	let addressTuple = AddressTuple()
 	var software: String?
-	var lifetime: UInt32 = 0
+	var lifetime: TimeInterval = 0
 	
 	init(_ body: Data) {
 		super.init(.allocate, body: body)
 		
 		if let addr: XORMappedAddress = attribute(type: .xorRelayedAddress) {
-			relayedAddress = addr.address
+			addressTuple.relay = addr.address
 		}
 		if let addr: XORMappedAddress = attribute(type: .xorMappedAddress) {
-			mappedAddress = addr.address
+			addressTuple.reflexive = addr.address
 		}
 		if let lt: Lifetime = attribute(type: .lifetime) {
-			lifetime = lt.lifetime
+			lifetime = TimeInterval(lt.lifetime)
 		}
 		if let sw: StringValue = attribute(type: .software) {
 			software = sw.value
@@ -160,7 +159,7 @@ class RefreshResponse: Response {
 	
 //	var relayedAddress: SocketAddress?
 //	var mappedAddress: SocketAddress?
-	var lifetime: UInt32 = 0
+	var lifetime: TimeInterval = 0
 	
 	init(_ body: Data) {
 		super.init(.allocate, body: body)
@@ -172,7 +171,7 @@ class RefreshResponse: Response {
 //			mappedAddress = addr.address
 //		}
 		if let lt: Lifetime = attribute(type: .lifetime) {
-			lifetime = lt.lifetime
+			lifetime = TimeInterval(lt.lifetime)
 		}
 //		if let sw: Software = attribute(type: .software) {
 //			software = sw.software

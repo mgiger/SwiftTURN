@@ -40,7 +40,7 @@ enum AttributeType: UInt16 {
 }
 
 
-class Attribute {
+public class Attribute {
 	
 	var type: AttributeType
 	var body = Data()

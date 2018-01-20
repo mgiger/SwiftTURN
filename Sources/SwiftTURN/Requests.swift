@@ -8,21 +8,18 @@
 
 import Foundation
 
-enum RequestType: UInt16 {
+public enum RequestType: UInt16 {
 	case bind					= 0x0001
 	case secret					= 0x0002
 	case allocate				= 0x0003
-//	case refresh				= 0x0004
-//	case send					= 0x0006
 	case sendIndication			= 0x0004
 	case setActiveDestination	= 0x0006
 	case data					= 0x0007
-//	case connect				= 0x0007
 	case createPermission		= 0x0008
 	case channelBind			= 0x0009
 }
 
-class Request: UDPRequest {
+public class Request: UDPRequest {
 	
 	public var tranId: Data
 	public var attributes: [Attribute]
@@ -63,13 +60,13 @@ class BindRequest : Request {
 
 class AllocateRequest: Request {
 	
-	init(_ transactionId: Data, lifetime: UInt32) {
+	init(_ transactionId: Data, lifetime: TimeInterval) {
 		super.init(transactionId, method: .allocate)
 		
 		attributes = [
 			RequestedTransport(),
 			StringValue(.software, value: "Skeeter 0.1"),
-			Lifetime(seconds: lifetime)
+			Lifetime(seconds: UInt32(lifetime))
 		]
 	}
 }

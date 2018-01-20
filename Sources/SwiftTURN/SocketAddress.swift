@@ -65,8 +65,8 @@ public class SocketAddress {
 					let addr = interface.ifa_addr.withMemoryRebound(to: sockaddr_in.self, capacity: 1, { (adr) -> sockaddr_in in
 						return adr.pointee
 					})
-					address = addr.sin_addr.s_addr
-					port = addr.sin_port
+					address = UInt32(addr.sin_addr.s_addr).bigEndian
+					port = UInt16(addr.sin_port).bigEndian
 				}
 			}
 		}

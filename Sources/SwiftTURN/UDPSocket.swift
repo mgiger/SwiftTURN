@@ -34,7 +34,7 @@ public class UDPSocket {
 	private var socket_fd: Int32
 	private var address: SocketAddress
 	
-	public init(_ addr: SocketAddress, timeout: Int = 10) throws {
+	public init(address addr: SocketAddress, timeout: Int = 10) throws {
 		
 		address = addr
 		
