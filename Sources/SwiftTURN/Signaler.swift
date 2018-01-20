@@ -30,10 +30,13 @@ public class Signaler {
 		let reflexive = client.reflexive?.description ?? ""
 		let local = client.local?.description ?? ""
 #if os(Linux)
-		let regUrl = String(format: "http://%s/register/%s/%s/%s/%s/",
-							host.cString(using: .utf8), identifier.cString(using: .utf8),
-							relay.cString(using: .utf8), reflexive.cString(using: .utf8),
-							local.cString(using: .utf8))
+	
+		let hstr = UnsafePointer<Int8>(host.cString(using: .utf8))
+		let istr = UnsafePointer<Int8>(identifier.cString(using: .utf8))
+		let rlstr = UnsafePointer<Int8>(relay.cString(using: .utf8))
+		let rxstr = UnsafePointer<Int8>(reflexive.cString(using: .utf8))
+		let lstr = UnsafePointer<Int8>(local.cString(using: .utf8))
+		let regUrl = String(format: "http://%s/register/%s/%s/%s/%s/", hstr, istr, rlstr, rxstr, lstr)
 #else
 		let regUrl = String(format: "http://%@/register/%@/%@/%@/%@/", host, identifier, relay, reflexive, local)
 #endif
@@ -60,7 +63,9 @@ public class Signaler {
 	public func discover(identifier: String, completion: @escaping (ChannelAddress?) -> Void) {
 		
 #if os(Linux)
-		let discoverUrl = String(format: "http://%s/discover/%s/", host.cString(using: .utf8), identifier.cString(using: .utf8))
+		let hstr = UnsafePointer<Int8>(host.cString(using: .utf8))
+		let istr = UnsafePointer<Int8>(identifier.cString(using: .utf8))
+		let discoverUrl = String(format: "http://%s/discover/%s/", hstr, istr)
 #else
 		let discoverUrl = String(format: "http://%@/discover/%@/", host, identifier)
 #endif
