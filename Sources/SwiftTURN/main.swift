@@ -66,15 +66,14 @@ class HeadlessService: PeerEventProtocol, SignalerEventProtocol {
 		}
 		
 		var exiting = false
-		repeat {
-			DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100), execute: {
-				
+		DispatchQueue.main.async {
+			repeat {
 				if !client.active {
 					exiting = true
+					sleep(1)
 				}
-			})
-
-		} while !exiting
+			} while !exiting
+		}
 	}
 }
 
