@@ -41,7 +41,7 @@ extension Data {
 	}
 	
 	mutating func networkAppendUInt8(_ value: UInt8) {
-		var val = value.bigEndian
+		var val = value
 		self.append(UnsafeBufferPointer(start: &val, count: 1))
 	}
 	
