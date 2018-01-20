@@ -61,7 +61,8 @@ public class TURNClient {
 					if let packet = try self.socket.receive() {
 						
 						// validate packet
-						let transId = packet[8..<20]
+//						let transId = packet[8..<20]
+						let transId = packet.subdata(in: packet.startIndex.advanced(by: 8)..<packet.startIndex.advanced(by: 20))
 						let cookie = packet.networkOrderedUInt32(at: 4)
 						if cookie == MagicCookie, self.transactionId == transId {
 							
@@ -70,8 +71,9 @@ public class TURNClient {
 							if let responseType = ResponseType(rawValue: messageType) {
 								
 								// dispatch packet
-								let len = packet.networkOrderedUInt16(at: 2)
-								self.dispatch(type: responseType, body: Data(packet[20..<20+len]))
+								let len = Int(packet.networkOrderedUInt16(at: 2))
+								let body = Data(packet.subdata(in: packet.startIndex.advanced(by: 20)..<packet.startIndex.advanced(by: 20 + len)))
+								self.dispatch(type: responseType, body: body)
 							}
 							else {
 								print("Unknown response: \(String(format:"0x%04x", messageType))")
