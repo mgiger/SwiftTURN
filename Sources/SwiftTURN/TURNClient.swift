@@ -11,6 +11,14 @@ import Dispatch
 
 let STUNDesiredLifetime: UInt32			= 1 * 60
 
+public class PeerAddressTuple {
+	
+	public var local: SocketAddress?
+	public var reflexive: SocketAddress?
+	public var relay: SocketAddress?
+	
+}
+
 public class TURNClient {
 	
 	// Generate a unique 96 bit transaction ID
@@ -20,22 +28,19 @@ public class TURNClient {
 	private var refreshTimeout = STUNDesiredLifetime
 	
 	/// Connection addresses
-	var relayedAddress: SocketAddress?		// TURN server address
-	var mappedAddress: SocketAddress?		// Our NAT mapped address
-	
-	private var internalAddress: SocketAddress?
-	private var externalAddress: SocketAddress?
+	var clientTuple = PeerAddressTuple()
 
 	private var socket: UDPSocket!
 	public var socketActive: Bool = true
+	
+	private var registeredCompletion: ((PeerAddressTuple?) -> Void)?
 
 	public init(hostname: String, port: UInt16) throws {
 		
-		let address = try SocketAddress(hostname: hostname, port: port)
-		socket = try UDPSocket(address)
+		registeredCompletion = nil
 		
-		// Get our internal/external addresses from the STUN bind call
-//		try socket.send(BindRequest(transactionId))
+		let serverAddress = try SocketAddress(hostname: hostname, port: port)
+		socket = try UDPSocket(serverAddress)
 	}
 	
 	public func stop() {
@@ -43,7 +48,9 @@ public class TURNClient {
 		socketActive = false
 	}
 	
-	public func start() {
+	public func start(registered: @escaping (PeerAddressTuple?) -> Void) {
+		
+		registeredCompletion = registered
 		
 		var refreshTime = Date(timeIntervalSinceNow: -TimeInterval(refreshTimeout))
 
@@ -61,7 +68,6 @@ public class TURNClient {
 					if let packet = try self.socket.receive() {
 						
 						// validate packet
-//						let transId = packet[8..<20]
 						let transId = packet.subdata(in: packet.startIndex.advanced(by: 8)..<packet.startIndex.advanced(by: 20))
 						let cookie = packet.networkOrderedUInt32(at: 4)
 						if cookie == MagicCookie, self.transactionId == transId {
@@ -114,11 +120,14 @@ public class TURNClient {
 		case .allocate:
 			let alloc = AllocateResponse(body)
 			refreshTimeout = max(alloc.lifetime - 60, 60)
-			relayedAddress = alloc.relayedAddress
-			mappedAddress = alloc.mappedAddress
+			
+			clientTuple.local = SocketAddress()
+			clientTuple.reflexive = alloc.mappedAddress
+			clientTuple.relay = alloc.relayedAddress
+			
 			print("Allocate success from \"\(alloc.software ?? "Unknown")\"")
 			
-			if let maddr = mappedAddress {
+			if let maddr = alloc.mappedAddress {
 				permission(peerAddress: maddr)
 			}
 		
@@ -128,6 +137,9 @@ public class TURNClient {
 			
 		case .allocateError:
 			let allocError = AllocateErrorResponse(body)
+			
+			registeredCompletion?(nil)
+			
 			print("\(allocError)")
 
 		case .refresh:

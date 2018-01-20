@@ -24,6 +24,20 @@ public class SocketAddress {
 		port = inPort
 	}
 	
+	public convenience init(hostname: String?) throws {
+		
+		guard let hostname = hostname else {
+			throw SocketError.badHost
+		}
+		
+		let components = hostname.components(separatedBy: ":")
+		if components.count < 2 {
+			throw SocketError.badHost
+		}
+		
+		try self.init(hostname: components[0], port: UInt16(components[1]) ?? 8000)
+	}
+	
 	public init(hostname: String, port inPort: UInt16) throws {
 		
 		guard let host = hostname.withCString({ gethostbyname($0) }) else {
@@ -31,11 +45,12 @@ public class SocketAddress {
 		}
 
 		port = inPort
+		
 		memcpy(&address, host.pointee.h_addr_list[0]!, Int(host.pointee.h_length))
 	}
 	
-	// determine the local address
-	public func setLocalHost() {
+	// default to the local address
+	public init() {
 		var ifaddr : UnsafeMutablePointer<ifaddrs>?
 		guard getifaddrs(&ifaddr) == 0 else { return }
 		guard let firstAddr = ifaddr else { return }
@@ -58,7 +73,6 @@ public class SocketAddress {
 		freeifaddrs(ifaddr)
 
 	}
-	
 	
 	public var sockaddr: sockaddr_in {
 		var sockaddr = sockaddr_in()
