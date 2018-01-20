@@ -8,27 +8,27 @@
 
 import Foundation
 
+public protocol SignalerEventProtocol {
+	
+	func discovered(identifier: String, address: ChannelAddress)
+}
 
 public class Signaler {
 
 	private var session: URLSession
 	private var host: String
-	
-	private var client: ChannelAddress
-	
+	private var delegate: SignalerEventProtocol
 
-	public init(host hostAddress: String, client clientTuple: ChannelAddress) {
-		host = hostAddress
-		client = clientTuple
-		
+	public init(hostServer addr: String, delegate owner: SignalerEventProtocol) {
+		host = addr
+		delegate = owner
 		session = URLSession(configuration: URLSessionConfiguration.default, delegate: nil, delegateQueue: nil)
 	}
 	
-	public func register(identifier: String) {
-	
-		let relay = client.relay?.description ?? ""
-		let reflexive = client.reflexive?.description ?? ""
-		let local = client.local?.description ?? ""
+	public func register(identifier: String, channel: ChannelAddress) {
+		let relay = channel.relay?.description ?? ""
+		let reflexive = channel.reflexive?.description ?? ""
+		let local = channel.local?.description ?? ""
 #if os(Linux)
 	
 		guard let hstr = UnsafePointer<Int8>(host.cString(using: .utf8)) else { return }
@@ -60,7 +60,7 @@ public class Signaler {
 //		}
 //	}
 	
-	public func discover(identifier: String, completion: @escaping (ChannelAddress?) -> Void) {
+	public func discover(identifier: String) {
 		
 #if os(Linux)
 		guard let hstr = UnsafePointer<Int8>(host.cString(using: .utf8)) else { return }
@@ -71,25 +71,21 @@ public class Signaler {
 #endif
 		if let url = URL(string: discoverUrl) {
 			
-			let task = session.dataTask(with: url, completionHandler: { (data, response, error) in
+			let task = session.dataTask(with: url, completionHandler: { [weak self] (data, response, error) in
 				if error == nil, let data = data {
 					
 					do {
 						if let package = try JSONSerialization.jsonObject(with: data, options: []) as? [String: String] {
 						
-							let peerTuple = ChannelAddress()
-							peerTuple.relay = try? SocketAddress(hostname: package["relay"])
-							peerTuple.reflexive = try? SocketAddress(hostname: package["reflexive"])
-							peerTuple.local = try? SocketAddress(hostname: package["local"])
+							let peerAddress = ChannelAddress()
+							peerAddress.relay = try? SocketAddress(hostname: package["relay"])
+							peerAddress.reflexive = try? SocketAddress(hostname: package["reflexive"])
+							peerAddress.local = try? SocketAddress(hostname: package["local"])
 							
-							completion(peerTuple)
+							self?.delegate.discovered(identifier: identifier, address: peerAddress)
 						}
 					} catch {
-						completion(nil)
 					}
-				}
-				else {
-					completion(nil)
 				}
 			})
 			task.resume()

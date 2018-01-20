@@ -8,6 +8,9 @@
 import Foundation
 import Dispatch
 
+let STUNDesiredLifetime: TimeInterval			= 5 * 60
+
+
 ///
 /// Channel command dispatch
 ///
@@ -18,16 +21,6 @@ public protocol PeerChannelCommandProtocol {
 	func listenOnSocket()
 	func stopListeningOnSocket()
 	func setRefreshTimeout(timeout: TimeInterval)
-	
-	/// Allocate an entry on the server
-	///
-	/// - Parameter lifetime: Requested lifetime
-	func requestAllocate(lifetime: TimeInterval)
-	
-	/// Refresh and allocation on the server
-	///
-	/// - Parameter lifetime: Requested lifetime
-	func requestRefresh(lifetime: TimeInterval)
 	
 	/// Request permissions for a set of channel addresses
 	///
@@ -88,6 +81,7 @@ public class PeerChannel: PeerChannelCommandProtocol {
 	private var transactionId: Data
 	private var listeners = [PeerChannelEventListenerProtocol]()
 	private var listening = false
+	private var allocated = false
 	private var refreshTimeout: TimeInterval = STUNDesiredLifetime
 	private var lastRefresh = Date()
 	
@@ -121,8 +115,14 @@ public class PeerChannel: PeerChannelCommandProtocol {
 			return
 		}
 		
+		
 		listening = true
+		allocated = false
 		lastRefresh = Date(timeIntervalSinceNow: -refreshTimeout)
+		
+		// initiate an allocation on the server
+		requestAllocate(lifetime: refreshTimeout)
+		
 		
 		DispatchQueue.global().async {
 			
@@ -130,7 +130,7 @@ public class PeerChannel: PeerChannelCommandProtocol {
 				
 				// refresh the channel periodically
 				let now = Date()
-				if self.lastRefresh.addingTimeInterval(self.refreshTimeout - 60) < now {
+				if self.allocated, self.lastRefresh.addingTimeInterval(self.refreshTimeout - 60) < now {
 					self.requestRefresh(lifetime: self.refreshTimeout)
 					self.lastRefresh = now
 				}
@@ -156,24 +156,19 @@ public class PeerChannel: PeerChannelCommandProtocol {
 	public func stopListeningOnSocket() {
 		listening = false
 		lastRefresh = Date(timeIntervalSince1970: 0)
+		
+		// Send a 0 lifetime refresh to the server informing them we're shutting down
+		requestRefresh(lifetime: 0)
 	}
 	
 	public func setRefreshTimeout(timeout: TimeInterval) {
 		refreshTimeout = timeout
 	}
 	
-	
 	///
 	/// channel commands
 	///
 	
-	public func requestAllocate(lifetime: TimeInterval) {
-		try? send(request: AllocateRequest(transactionId, lifetime: lifetime))
-	}
-	
-	public func requestRefresh(lifetime: TimeInterval) {
-		try? send(request: RefreshRequest(transactionId, lifetime: lifetime))
-	}
 	
 	public func requestPermission(peerAddresses: [ChannelAddress]) {
 		try? send(request: CreatePermission(transactionId, peerAddresses: peerAddresses))
@@ -212,7 +207,6 @@ public class PeerChannel: PeerChannelCommandProtocol {
 				
 				switch responseType {
 				case .bind:
-//					let bind = BindResponse(body)
 					listeners.forEach { $0.bindSuccess() }
 					
 				case .bindError:
@@ -222,9 +216,12 @@ public class PeerChannel: PeerChannelCommandProtocol {
 					
 				case .allocate:
 					let alloc = AllocateResponse(body)
+					allocated = true
+					lastRefresh = Date()
 					listeners.forEach { $0.allocate(address: alloc.address, lifetime: alloc.lifetime) }
 					
 				case .allocateError:
+					allocated = false
 					let allocError = AllocateErrorResponse(body)
 					listeners.forEach { $0.allocateError(code: allocError.code, message: allocError.reason) }
 
@@ -255,6 +252,21 @@ public class PeerChannel: PeerChannelCommandProtocol {
 		}
 	}
 	
+	
+	/// Allocate an entry on the server
+	///
+	/// - Parameter lifetime: Requested lifetime
+	private func requestAllocate(lifetime: TimeInterval) {
+		try? send(request: AllocateRequest(transactionId, lifetime: lifetime))
+	}
+	
+	/// Send a refresh packet to the server
+	///
+	/// - Parameter lifetime: Requested lifetime
+	private func requestRefresh(lifetime: TimeInterval) {
+		try? send(request: RefreshRequest(transactionId, lifetime: lifetime))
+	}
+
 	
 	///
 	/// Listener management

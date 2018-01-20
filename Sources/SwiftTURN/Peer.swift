@@ -15,6 +15,11 @@ public protocol PeerCommandProtocol {
 	func request(peers: [ChannelAddress])
 }
 
+public protocol PeerEventProtocol {
+	
+	func allocated()
+}
+
 public class Peer: PeerCommandProtocol, PeerChannelEventListenerProtocol {
 	
 	// Generate a unique 96 bit transaction ID
@@ -23,11 +28,11 @@ public class Peer: PeerCommandProtocol, PeerChannelEventListenerProtocol {
 	// communications
 	private var channel: PeerChannelCommandProtocol
 	
-	/// For sending refresh packets periodically
-	private var refreshTimeout = STUNDesiredLifetime
-	
 	/// Connection addresses
-	private var address: ChannelAddress?
+	public var address: ChannelAddress?
+	
+	/// Delegate
+	private var delegate: PeerEventProtocol
 	
 	/// Authorized peers
 	private var peers = [PeerChannel]()
@@ -38,7 +43,9 @@ public class Peer: PeerCommandProtocol, PeerChannelEventListenerProtocol {
 	}
 	
 	
-	public init(serverHost: String) throws {
+	public init(serverHost: String, delegate owner: PeerEventProtocol) throws {
+		
+		delegate = owner
 		
 		let address = ChannelAddress()
 		address.relay = try SocketAddress(hostname: serverHost)
@@ -85,6 +92,8 @@ public class Peer: PeerCommandProtocol, PeerChannelEventListenerProtocol {
 	public func allocateSuccess(address: ChannelAddress, lifetime: TimeInterval) {
 		self.address = address
 		channel.setRefreshTimeout(timeout: lifetime)
+		
+		delegate.allocated()
 	}
 	
 	public func allocateError(code: UInt16, message: String) {

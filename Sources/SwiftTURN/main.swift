@@ -8,22 +8,63 @@
 import Foundation
 import Dispatch
 
-do {
+class HeadlessService: PeerEventProtocol, SignalerEventProtocol {
 	
-	let connection = try Peer(serverHost: "45.32.202.66:3478")
+	public var active = false
 	
-	var exiting = false
-	repeat {
-		
-		DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(1), execute: {
-			if !connection.active {
-				exiting = true
-			}
-		})
-		
-	} while !exiting
+	private var relayClient: Peer?
+	private var meetingRoom: Signaler?
+	
 
-} catch {
-	print("Exception: \(error.localizedDescription)")
+	func allocated() {
+		guard let address = relayClient?.address else {
+			return
+		}
+		
+		meetingRoom = Signaler(hostServer: "45.32.202.66:8000", delegate: self)
+		meetingRoom?.register(identifier: "skeetsy", channel: address)
+	}
+	
+	func discovered(identifier: String, address: ChannelAddress) {
+		
+	}
+	
+
+	public init() {
+		
+		connectAsPeer()
+	}
+	
+	func connectAsPeer() {
+		do {
+			relayClient = try Peer(serverHost: "45.32.202.66:3478", delegate: self)
+			try relayClient?.openConnection()
+			
+		} catch {
+			print("Exception: \(error.localizedDescription)")
+		}
+	}
+
+	
+	public func runloop() {
+		
+		guard let client = relayClient else {
+			return
+		}
+		
+		var exiting = false
+		repeat {
+			DispatchQueue.main.asyncAfter(deadline: .now() + .milliseconds(100), execute: {
+				
+				if !client.active {
+					exiting = true
+				}
+			})
+
+		} while !exiting
+	}
 }
+
+let service = HeadlessService()
+service.runloop()
 
