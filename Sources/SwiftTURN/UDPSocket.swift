@@ -38,7 +38,7 @@ public class UDPSocket {
 		
 		address = addr
 		
-		socket_fd = socket(AF_INET, Int32(SOCK_DGRAM), 0)
+		socket_fd = socket(AF_INET, sock_dgram, 0)
 		if socket_fd < 0 {
 			throw SocketError.allocateError
 		}
