@@ -43,10 +43,10 @@ public class UDPSocket {
 			throw SocketError.allocateError
 		}
 		
-		var value: Int32 = 1
-		if setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &value, socklen_t(MemoryLayout<Int32>.size)) != -1 {
-			throw SocketError.allocateError
-		}
+//		var value: Int32 = 1
+//		if setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &value, socklen_t(MemoryLayout<Int32>.size)) != -1 {
+//			throw SocketError.allocateError
+//		}
 
 		
 		var socktimeout = timeval()

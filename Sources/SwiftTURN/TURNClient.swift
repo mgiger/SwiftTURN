@@ -27,7 +27,7 @@ public class TURNClient {
 	private var externalAddress: SocketAddress?
 
 	private var socket: UDPSocket!
-	private var socketActive: Bool = true
+	public var socketActive: Bool = true
 
 	public init(hostname: String, port: UInt16) throws {
 		
