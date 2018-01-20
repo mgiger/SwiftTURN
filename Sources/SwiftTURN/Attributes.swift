@@ -51,8 +51,8 @@ class Attribute {
 	
 	public var packet: Data {
 		var data = Data()
-		data.networkAppend(type.rawValue)
-		data.networkAppend(UInt16(body.count))
+		data.networkAppendUInt16(type.rawValue)
+		data.networkAppendUInt16(UInt16(body.count))
 		
 		// Enforce 32 bit alignment
 		if body.count % 4 > 0 {
@@ -72,7 +72,7 @@ class ErrorCode: Attribute {
 	let reason: String
 	
 	init(_ data: Data) {
-		code = data.networkOrdered(at: 2)
+		code = data.networkOrderedUInt16(at: 2)
 		reason = String(bytes: data[4...], encoding: .utf8) ?? ""
 		
 		super.init(.errorCode)
@@ -85,7 +85,7 @@ class ErrorCode: Attribute {
 		reason = errReason
 		
 		super.init(.errorCode)
-		body.networkAppend(code)
+		body.networkAppendUInt16(code)
 		body.append(reason.data(using: .utf8) ?? Data())
 	}
 	
@@ -97,7 +97,7 @@ class ErrorCode: Attribute {
 class MappedAddress: Attribute {
 	let address: SocketAddress
 	init(_ data: Data) {
-		address = SocketAddress(address: data.networkOrdered(at: 4), port: data.networkOrdered(at: 2))
+		address = SocketAddress(address: data.networkOrderedUInt32(at: 4), port: data.networkOrderedUInt16(at: 2))
 
 		super.init(.mappedAddress)
 		body = data
@@ -106,9 +106,9 @@ class MappedAddress: Attribute {
 		address = addr
 		
 		super.init(.mappedAddress)
-		body.networkAppend(UInt16(0))
-		body.networkAppend(address.port)
-		body.networkAppend(address.address)
+		body.networkAppendUInt16(UInt16(0))
+		body.networkAppendUInt16(address.port)
+		body.networkAppendUInt32(address.address)
 	}
 	
 	override public var description: String {
@@ -123,8 +123,8 @@ class XORMappedAddress: Attribute {
 	init(attribute: AttributeType, data: Data) {
 		
 		// xor extracted values
-		address = SocketAddress(address: data.networkOrdered(at: 4) ^ MagicCookie,
-								port: data.networkOrdered(at: 2) ^ MagicCookieMSB)
+		address = SocketAddress(address: data.networkOrderedUInt32(at: 4) ^ MagicCookie,
+								port: data.networkOrderedUInt16(at: 2) ^ MagicCookieMSB)
 
 		super.init(attribute)
 		body = data
@@ -135,9 +135,9 @@ class XORMappedAddress: Attribute {
 		super.init(attribute)
 		
 		// xor it as we package it up
-		body.networkAppend(UInt16(0))
-		body.networkAppend(address.port ^ MagicCookieMSB)
-		body.networkAppend(address.address ^ MagicCookie)
+		body.networkAppendUInt16(UInt16(0))
+		body.networkAppendUInt16(address.port ^ MagicCookieMSB)
+		body.networkAppendUInt32(address.address ^ MagicCookie)
 	}
 	
 	override public var description: String {
@@ -176,9 +176,9 @@ class RequestedTransport: Attribute {
 	}
 	init() {
 		super.init(.requestedTransport)
-		body.networkAppend(transport)
-		body.networkAppend(UInt8(0))
-		body.networkAppend(UInt16(0))
+		body.networkAppendUInt8(transport)
+		body.networkAppendUInt8(UInt8(0))
+		body.networkAppendUInt16(UInt16(0))
 	}
 	
 	override public var description: String {
@@ -208,7 +208,7 @@ class AddressFamily: Attribute {
 	}
 	init(name: String) {
 		super.init(.addressFamily)
-		body.networkAppend(UInt32(0x01 << 24))
+		body.networkAppendUInt32(UInt32(0x01 << 24))
 	}
 	
 	override public var description: String {
@@ -224,10 +224,10 @@ class Lifetime: Attribute {
 		lifetime = seconds
 
 		super.init(.lifetime)
-		body.networkAppend(lifetime)
+		body.networkAppendUInt32(lifetime)
 	}
 	init(_ data: Data) {
-		lifetime = data.networkOrdered(at: 0)
+		lifetime = data.networkOrderedUInt32(at: 0)
 
 		super.init(.lifetime)
 	}

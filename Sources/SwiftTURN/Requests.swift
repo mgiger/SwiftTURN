@@ -44,9 +44,9 @@ class Request: UDPRequest {
 		
 		// header
 		var packet = Data()
-		packet.networkAppend(requestMethod.rawValue)
-		packet.networkAppend(length)
-		packet.networkAppend(MagicCookie)
+		packet.networkAppendUInt16(requestMethod.rawValue)
+		packet.networkAppendUInt16(length)
+		packet.networkAppendUInt32(MagicCookie)
 		packet.append(tranId)
 		
 		packet.append(attrData)

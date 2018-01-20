@@ -61,15 +61,15 @@ public class TURNClient {
 						
 						// validate packet
 						let transId = packet[8..<20]
-						let cookie: UInt32 = packet.networkOrdered(at: 4)
+						let cookie = packet.networkOrderedUInt32(at: 4)
 						if cookie == MagicCookie, self.transactionId == transId {
 							
 							// determine packet type
-							let messageType: UInt16 = packet.networkOrdered(at: 0)
+							let messageType = packet.networkOrderedUInt16(at: 0)
 							if let responseType = ResponseType(rawValue: messageType) {
 								
 								// dispatch packet
-								let len: UInt16 = packet.networkOrdered(at: 2)
+								let len = packet.networkOrderedUInt16(at: 2)
 								self.dispatch(type: responseType, body: Data(packet[20..<20+len]))
 							}
 							else {

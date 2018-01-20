@@ -71,8 +71,8 @@ class Response {
 			return nil
 		}
 		
-		let attrType: UInt16 = body.networkOrdered(at: 0)
-		let attrLen: UInt16 = body.networkOrdered(at: 2)
+		let attrType = body.networkOrderedUInt16(at: 0)
+		let attrLen = body.networkOrderedUInt16(at: 2)
 		let length = attrLen + 4
 		let data = Data(body[4..<length])
 		body = Data(body[length...])
