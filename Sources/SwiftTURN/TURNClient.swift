@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Dispatch
 
 let STUNDesiredLifetime: UInt32			= 1 * 60
 

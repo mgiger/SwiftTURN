@@ -62,7 +62,11 @@ public class UDPSocket {
 		}
 	}
 	
-	@discardableResult public func send(_ request: UDPRequest) throws -> Bool {
+	deinit {
+		close(socket_fd)
+	}
+	
+	public func send(_ request: UDPRequest) throws -> Bool {
 		
 		var addr = address.sockaddr
 		let addrlen = address.sockaddrLen
@@ -98,9 +102,5 @@ public class UDPSocket {
 		}
 		
 		return Data(buffer: UnsafeBufferPointer(start: &buffer, count: bytesRead))
-	}
-	
-	private func htons(_ value: CUnsignedShort) -> CUnsignedShort {
-		return (value << 8) + (value >> 8)
 	}
 }
