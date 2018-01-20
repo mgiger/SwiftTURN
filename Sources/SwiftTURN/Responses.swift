@@ -74,8 +74,8 @@ class Response {
 		let attrType = body.networkOrderedUInt16(at: 0)
 		let attrLen = body.networkOrderedUInt16(at: 2)
 		let length = attrLen + 4
-		let data = Data(body[4..<length])
-		body = Data(body[length...])
+		let data = Data(body.subdata(in: 4..<length)
+		body = Data(body.subdata(in: length...))
 		
 		if let type = AttributeType(rawValue: attrType) {
 			switch type {
