@@ -41,6 +41,8 @@ public class Signaler {
 #else
 		let regUrl = String(format: "http://%@/register/%@/%@/%@/%@/", host, identifier, relay, reflexive, local)
 #endif
+		print("register \(regUrl)")
+		
 		if let url = URL(string: regUrl) {
 			
 			let task = session.dataTask(with: url, completionHandler: { [weak self] (data, response, error) in
@@ -70,6 +72,8 @@ public class Signaler {
 #else
 		let discoverUrl = String(format: "http://%@/discover/%@/", host, identifier)
 #endif
+		print("discover \(discoverUrl)")
+		
 		if let url = URL(string: discoverUrl) {
 			
 			let task = session.dataTask(with: url, completionHandler: { [weak self] (data, response, error) in
