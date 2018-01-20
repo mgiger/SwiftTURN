@@ -10,18 +10,18 @@ import Dispatch
 
 do {
 	
-	let turn = try TURNClient(hostname: "45.32.202.66:3478")
+	let connection = try Peer(serverHost: "45.32.202.66:3478")
 	
-//	var exiting = false
-//	repeat {
-//		
-//		DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(1), execute: {
-//			if turn.socketActive {
-//				exiting = true
-//			}
-//		})
-//		
-//	} while !exiting
+	var exiting = false
+	repeat {
+		
+		DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(1), execute: {
+			if !connection.active {
+				exiting = true
+			}
+		})
+		
+	} while !exiting
 
 } catch {
 	print("Exception: \(error.localizedDescription)")

@@ -8,7 +8,7 @@
 
 import Foundation
 
-enum ResponseType: UInt16 {
+public enum ResponseType: UInt16 {
 	case bind					= 0x0101
 	case secret					= 0x0102
 	case allocate				= 0x0103
@@ -20,13 +20,29 @@ enum ResponseType: UInt16 {
 	case bindError				= 0x0111
 	case secretError			= 0x0112
 	case allocateError			= 0x0113
+	case refreshError			= 0x0114
 	case dataIndication			= 0x0115
 	case activeDestinationError	= 0x0116
 	case connectError			= 0x0117
 	case connectStatus			= 0x0118
 }
 
-class Response {
+public enum TURNErrorCode: UInt16 {
+	case unknown				= 0
+	case tryAlternate			= 300
+	case badRequest				= 400
+	case unauthorized			= 401
+	case forbidden				= 403
+	case unknownAttribute		= 420
+	case allocationMismatch		= 437
+	case staleNonce				= 438
+	case wrongCredentials		= 441
+	case unsupportedAddress		= 442
+	case allocQuotaReached		= 486
+	case insufficientCapacity	= 508
+}
+
+internal class Response {
 	
 	public var type: ResponseType
 	public var body: Data
@@ -82,7 +98,7 @@ class Response {
 			case .mappedAddress:			return (type, MappedAddress(data))
 			case .username:					break
 			case .messageIntegrity:			break
-			case .errorCode:				return (type, ErrorCode(data))
+			case .errorCode:				return (type, ErrorCodeAttribute(data))
 			case .unknownAttributes:		break
 			case .channelNumber:			break
 			case .lifetime:					return (type, Lifetime(data))
@@ -119,14 +135,22 @@ class BindResponse: Response {
 
 class BindErrorResponse: Response {
 	
+	var code: TURNErrorCode = .unknown
+	var reason = "<no error>"
+	
 	init(_ body: Data) {
 		super.init(.bindError, body: body)
+		
+		if let error: ErrorCodeAttribute = attribute(type: .errorCode) {
+			code = TURNErrorCode(rawValue: error.code) ?? .unknown
+			reason = error.reason
+		}
 	}
 }
 
 class AllocateResponse: Response {
 	
-	let addressTuple = AddressTuple()
+	let address = ChannelAddress()
 	var software: String?
 	var lifetime: TimeInterval = 0
 	
@@ -134,10 +158,10 @@ class AllocateResponse: Response {
 		super.init(.allocate, body: body)
 		
 		if let addr: XORMappedAddress = attribute(type: .xorRelayedAddress) {
-			addressTuple.relay = addr.address
+			address.relay = addr.address
 		}
 		if let addr: XORMappedAddress = attribute(type: .xorMappedAddress) {
-			addressTuple.reflexive = addr.address
+			address.reflexive = addr.address
 		}
 		if let lt: Lifetime = attribute(type: .lifetime) {
 			lifetime = TimeInterval(lt.lifetime)
@@ -150,63 +174,61 @@ class AllocateResponse: Response {
 
 class AllocateErrorResponse: Response {
 	
+	var code: TURNErrorCode = .unknown
+	var reason = "<no error>"
+
 	init(_ body: Data) {
 		super.init(.allocateError, body: body)
+		
+		if let error: ErrorCodeAttribute = attribute(type: .errorCode) {
+			code = TURNErrorCode(rawValue: error.code) ?? .unknown
+			reason = error.reason
+		}
 	}
 }
 
 class RefreshResponse: Response {
 	
-//	var relayedAddress: SocketAddress?
-//	var mappedAddress: SocketAddress?
 	var lifetime: TimeInterval = 0
 	
 	init(_ body: Data) {
 		super.init(.allocate, body: body)
 		
-//		if let addr: XORMappedAddress = attribute(type: .xorRelayedAddress) {
-//			relayedAddress = addr.address
-//		}
-//		if let addr: XORMappedAddress = attribute(type: .xorMappedAddress) {
-//			mappedAddress = addr.address
-//		}
 		if let lt: Lifetime = attribute(type: .lifetime) {
 			lifetime = TimeInterval(lt.lifetime)
 		}
-//		if let sw: Software = attribute(type: .software) {
-//			software = sw.software
-//		}
 	}
 }
 
-class ConnectResponse: Response {
+class CreatePermissionRespons: Response {
 	
-	init(_ body: Data) {
-		super.init(.connect, body: body)
-	}
-}
-
-
-class ConnectErrorResponse: Response {
-	
-	init(_ body: Data) {
-		super.init(.connectError, body: body)
-	}
-}
-
-
-class ConnectStatusResponse: Response {
-	
-	init(_ body: Data) {
-		super.init(.connectStatus, body: body)
-	}
-}
-
-
-class PermissionResponse: Response {
+	var addresses = [ChannelAddress]()
 	
 	init(_ body: Data) {
 		super.init(.permission, body: body)
 		
+		addresses = attributes(typed: .xorPeerAddress)
 	}
 }
+
+//class ConnectResponse: Response {
+//
+//	init(_ body: Data) {
+//		super.init(.connect, body: body)
+//	}
+//}
+//
+//class ConnectErrorResponse: Response {
+//
+//	init(_ body: Data) {
+//		super.init(.connectError, body: body)
+//	}
+//}
+//
+//class ConnectStatusResponse: Response {
+//
+//	init(_ body: Data) {
+//		super.init(.connectStatus, body: body)
+//	}
+//}
+

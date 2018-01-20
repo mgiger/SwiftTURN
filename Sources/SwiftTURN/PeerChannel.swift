@@ -8,36 +8,55 @@
 import Foundation
 import Dispatch
 
-public protocol PeerChannelProtocol {
+///
+/// Channel command dispatch
+///
+public protocol PeerChannelCommandProtocol {
 	
 	/// Channel control
+	func connectSocket() throws
 	func listenOnSocket()
 	func stopListeningOnSocket()
 	func setRefreshTimeout(timeout: TimeInterval)
 	
-	/// Channel commands
-	func allocate(lifetime: TimeInterval)
-	func permission(peerAddress: SocketAddress)
+	/// Allocate an entry on the server
+	///
+	/// - Parameter lifetime: Requested lifetime
+	func requestAllocate(lifetime: TimeInterval)
+	
+	/// Refresh and allocation on the server
+	///
+	/// - Parameter lifetime: Requested lifetime
+	func requestRefresh(lifetime: TimeInterval)
+	
+	/// Request permissions for a set of channel addresses
+	///
+	/// - Parameter peerAddresses: The set of addresses we would like permissions to read/write from
+	func requestPermission(peerAddresses: [ChannelAddress])
 
 	/// Listener management
 	func add(listener: PeerChannelEventListenerProtocol)
 	func remove(listener: PeerChannelEventListenerProtocol)
 }
 
+///
+/// Channel events
+///
 public protocol PeerChannelEventListenerProtocol: class {
 	
 	// Simple STUN bind interface
-	func bind()
-	func bindError()
+	func bindSuccess()
+	func bindError(code: UInt16, message: String)
 	
 	// TURN allocation
-	func allocate(addresses: AddressTuple, lifetime: TimeInterval)
-	func allocateError()
+	func allocate(address: ChannelAddress, lifetime: TimeInterval)
+	func allocateError(code: UInt16, message: String)
+	
+	// STUN refresh
+	func refreshed(lifetime: TimeInterval)
 	
 	// TURN permission
-	func permission()
-	
-	func refresh()
+	func permissionReceived(addresses: [ChannelAddress])
 	
 	func connect()
 	func connectError()
@@ -45,13 +64,16 @@ public protocol PeerChannelEventListenerProtocol: class {
 }
 
 // make all protocols optional
-extension PeerChannelEventListenerProtocol {
-	func bind() {}
-	func bindError() {}
-	func allocate(addresses: AddressTuple, lifetime: TimeInterval) {}
-	func allocateError() {}
+public extension PeerChannelEventListenerProtocol {
+	func bindSuccess() {}
+	func bindError(code: TURNErrorCode, message: String) {}
+	
+	func allocate(address: ChannelAddress, lifetime: TimeInterval) {}
+	func allocateError(code: TURNErrorCode, message: String) {}
+	
+	func refreshed(lifetime: TimeInterval) {}
+	
 	func permission() {}
-	func refresh() {}
 	func connect() {}
 	func connectError() {}
 	func connectStatus() {}
@@ -59,24 +81,33 @@ extension PeerChannelEventListenerProtocol {
 
 
 
-public class PeerChannel: PeerChannelProtocol {
+public class PeerChannel: PeerChannelCommandProtocol {
 	
-	private var socket: UDPSocket
+	private var socket: UDPSocket?
+	private var address: ChannelAddress
 	private var transactionId: Data
 	private var listeners = [PeerChannelEventListenerProtocol]()
 	private var listening = false
-	private var refreshTimeout: TimeInterval = 9 * 60
+	private var refreshTimeout: TimeInterval = STUNDesiredLifetime
 	private var lastRefresh = Date()
 	
-	public init(address: SocketAddress, transactionId transId: Data) throws {
+	public init(address addr: ChannelAddress, transactionId transId: Data) {
 		transactionId = transId
-		socket = try UDPSocket(address: address, timeout: 1)
+		address = addr
 	}
 	
 	
 	///
 	/// Channel control
 	///
+	public func connectSocket() throws {
+		
+		guard let relayAddress = address.relay else {
+			throw SocketError.badHost
+		}
+		
+		socket = try UDPSocket(address: relayAddress, timeout: 1)
+	}
 	
 	public func listenOnSocket() {
 		
@@ -85,22 +116,28 @@ public class PeerChannel: PeerChannelProtocol {
 			return
 		}
 		
-		lastRefresh = Date(timeIntervalSinceNow: -refreshTimeout)
+		guard let sock = socket else {
+			assert(false, "Socket unavailable")
+			return
+		}
 		
 		listening = true
+		lastRefresh = Date(timeIntervalSinceNow: -refreshTimeout)
+		
 		DispatchQueue.global().async {
+			
 			repeat {
 				
 				// refresh the channel periodically
 				let now = Date()
-				if self.lastRefresh.addingTimeInterval(self.refreshTimeout) < now {
-					self.refresh()
+				if self.lastRefresh.addingTimeInterval(self.refreshTimeout - 60) < now {
+					self.requestRefresh(lifetime: self.refreshTimeout)
 					self.lastRefresh = now
 				}
 				
 				// wait for messages on the socket
 				do {
-					if let packet = try self.socket.receive() {
+					if let packet = try sock.receive() {
 						self.receive(packet: packet)
 					}
 				} catch SocketError.receiveError {
@@ -109,7 +146,8 @@ public class PeerChannel: PeerChannelProtocol {
 				} catch {
 
 					print("Socket exception: \(error.localizedDescription)")
-					self.listening = false
+					self.stopListeningOnSocket()
+					
 				}
 			} while self.listening
 		}
@@ -117,6 +155,7 @@ public class PeerChannel: PeerChannelProtocol {
 	
 	public func stopListeningOnSocket() {
 		listening = false
+		lastRefresh = Date(timeIntervalSince1970: 0)
 	}
 	
 	public func setRefreshTimeout(timeout: TimeInterval) {
@@ -128,16 +167,16 @@ public class PeerChannel: PeerChannelProtocol {
 	/// channel commands
 	///
 	
-	public func allocate(lifetime: TimeInterval) {
+	public func requestAllocate(lifetime: TimeInterval) {
 		try? send(request: AllocateRequest(transactionId, lifetime: lifetime))
 	}
 	
-	public func permission(peerAddress: SocketAddress) {
-		try? send(request: CreatePermission(transactionId, peerAddress: peerAddress))
+	public func requestRefresh(lifetime: TimeInterval) {
+		try? send(request: RefreshRequest(transactionId, lifetime: lifetime))
 	}
 	
-	public func refresh() {
-		
+	public func requestPermission(peerAddresses: [ChannelAddress]) {
+		try? send(request: CreatePermission(transactionId, peerAddresses: peerAddresses))
 	}
 	
 
@@ -146,7 +185,11 @@ public class PeerChannel: PeerChannelProtocol {
 	///
 	
 	private func send(request: Request) throws {
-		let success = try socket.send(request)
+		guard let sock = socket else {
+			throw SocketError.allocateError
+		}
+		
+		let success = try sock.send(request)
 		if !success {
 			print("failure to send packet")
 		}
@@ -170,27 +213,28 @@ public class PeerChannel: PeerChannelProtocol {
 				switch responseType {
 				case .bind:
 //					let bind = BindResponse(body)
-					listeners.forEach { $0.bind() }
+					listeners.forEach { $0.bindSuccess() }
 					
 				case .bindError:
-//					let bindError = BindErrorResponse(body)
-					listeners.forEach { $0.bindError() }
+					let bindError = BindErrorResponse(body)
+					listeners.forEach { $0.bindError(code: bindError.code, message: bindError.reason) }
+					
 					
 				case .allocate:
 					let alloc = AllocateResponse(body)
-					listeners.forEach { $0.allocate(addresses: alloc.addressTuple, lifetime: alloc.lifetime) }
+					listeners.forEach { $0.allocate(address: alloc.address, lifetime: alloc.lifetime) }
 					
 				case .allocateError:
-//					let allocError = AllocateErrorResponse(body)
-					listeners.forEach { $0.allocateError() }
+					let allocError = AllocateErrorResponse(body)
+					listeners.forEach { $0.allocateError(code: allocError.code, message: allocError.reason) }
 
 				case .permission:
-//					let perm = PermissionResponse(body)
-					listeners.forEach { $0.permission() }
+					let permissionResponse = CreatePermissionRespons(body)
+					listeners.forEach { $0.permissionReceived(addresses: permissionResponse.addresses) }
 					
 				case .refresh:
-//					let refresh = RefreshResponse(body)
-					listeners.forEach { $0.refresh() }
+					let refresh = RefreshResponse(body)
+					listeners.forEach { $0.refreshed(lifetime: refresh.lifetime) }
 					
 				case .connect:
 //					let connect = ConnectResponse(body)

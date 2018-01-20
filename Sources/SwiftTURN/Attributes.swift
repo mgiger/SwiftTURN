@@ -67,7 +67,7 @@ public class Attribute {
 	}
 }
 
-class ErrorCode: Attribute {
+class ErrorCodeAttribute: Attribute {
 	let code: UInt16
 	let reason: String
 	
