@@ -11,7 +11,10 @@ import Foundation
 public protocol SignalerEventProtocol {
 	
 	func registered(identifier: String)
+	func registerFailed(identifier: String)
+	
 	func discovered(identifier: String, address: ChannelAddress)
+	func discoverFailed(identifier: String)
 }
 
 public class Signaler {
@@ -37,6 +40,12 @@ public class Signaler {
 		if let url = URL(string: regUrl) {
 			
 			let task = session.dataTask(with: url, completionHandler: { [weak self] (data, response, error) in
+				
+				guard error != nil else {
+					self?.delegate.registerFailed(identifier: identifier)
+					return
+				}
+				
 				self?.delegate.registered(identifier: identifier)
 			})
 			task.resume()
@@ -62,21 +71,26 @@ public class Signaler {
 		if let url = URL(string: discoverUrl) {
 			
 			let task = session.dataTask(with: url, completionHandler: { [weak self] (data, response, error) in
-				if error == nil, let data = data {
-					
-					do {
-						if let package = try JSONSerialization.jsonObject(with: data, options: []) as? [String: String] {
-						
-							let peerAddress = ChannelAddress()
-							peerAddress.relay = try? SocketAddress(hostname: package["relay"])
-							peerAddress.reflexive = try? SocketAddress(hostname: package["reflexive"])
-							peerAddress.local = try? SocketAddress(hostname: package["local"])
-							
-							self?.delegate.discovered(identifier: identifier, address: peerAddress)
-						}
-					} catch {
-					}
+				
+				guard let data = data, error == nil else {
+					self?.delegate.registerFailed(identifier: identifier)
+					return
 				}
+				
+				do {
+					if let package = try JSONSerialization.jsonObject(with: data, options: []) as? [String: String] {
+					
+						let peerAddress = ChannelAddress()
+						peerAddress.relay = try? SocketAddress(hostname: package["relay"])
+						peerAddress.reflexive = try? SocketAddress(hostname: package["reflexive"])
+						peerAddress.local = try? SocketAddress(hostname: package["local"])
+						
+						self?.delegate.discovered(identifier: identifier, address: peerAddress)
+					}
+				} catch {
+					self?.delegate.registerFailed(identifier: identifier)
+				}
+				
 			})
 			task.resume()
 		}

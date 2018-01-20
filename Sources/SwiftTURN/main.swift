@@ -31,11 +31,17 @@ class HeadlessService: PeerEventProtocol, SignalerEventProtocol {
 		print("registered \(identifier)")
 	}
 	
+	func registerFailed(identifier: String) {
+		print("register failed \(identifier)")
+	}
 	func discovered(identifier: String, address: ChannelAddress) {
 		
 		print("discovered \(identifier) at \(address)")
 	}
 	
+	func discoverFailed(identifier: String) {
+		print("discover failed \(identifier)")
+	}
 
 	public init() {
 		
