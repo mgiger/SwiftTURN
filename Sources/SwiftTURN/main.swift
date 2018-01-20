@@ -13,20 +13,23 @@ class HeadlessService: PeerEventProtocol, SignalerEventProtocol {
 	private var relayClient: Peer?
 	private var meetingRoom: Signaler?
 	
-	public init() {
-		
-		connectAsPeer()
-	}
 	
 	func allocated() {
 		guard let address = relayClient?.address else {
+			print("Error: failed to allocate client address")
 			return
 		}
 		
 		print("allocated peer: \(address)")
-		
+//		
+//		DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(100), execute: {
+//			self.runloop()
+//		})
+//		
 		meetingRoom = Signaler(hostServer: "45.32.202.66:8000", delegate: self)
 		meetingRoom?.register(identifier: "skeetsy", channel: address)
+		
+		runloop()
 	}
 	
 	func registered(identifier: String) {
@@ -56,7 +59,7 @@ class HeadlessService: PeerEventProtocol, SignalerEventProtocol {
 		}
 	}
 
-	public func loop() {
+	public func runloop() {
 		
 		guard let client = relayClient, client.active else {
 			print("Error: no client")
@@ -64,7 +67,8 @@ class HeadlessService: PeerEventProtocol, SignalerEventProtocol {
 		}
 		
 		var exiting = false
-		DispatchQueue.main.async {
+		DispatchQueue.main.sync {
+			
 			repeat {
 				if !client.active {
 					exiting = true
@@ -73,14 +77,8 @@ class HeadlessService: PeerEventProtocol, SignalerEventProtocol {
 			} while !exiting
 		}
 	}
-	
-	public func runloop() {
-		DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(100), execute: {
-			self.loop()
-		})
-	}
 }
 
 let service = HeadlessService()
-service.runloop()
+service.connectAsPeer()
 
