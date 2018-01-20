@@ -39,11 +39,11 @@ public protocol PeerChannelEventListenerProtocol: class {
 	
 	// Simple STUN bind interface
 	func bindSuccess()
-	func bindError(code: UInt16, message: String)
+	func bindError(code: TURNErrorCode, message: String)
 	
 	// TURN allocation
 	func allocate(address: ChannelAddress, lifetime: TimeInterval)
-	func allocateError(code: UInt16, message: String)
+	func allocateError(code: TURNErrorCode, message: String)
 	
 	// STUN refresh
 	func refreshed(lifetime: TimeInterval)
@@ -61,8 +61,8 @@ public extension PeerChannelEventListenerProtocol {
 	func bindSuccess() {}
 	func bindError(code: TURNErrorCode, message: String) {}
 	
-	func allocate(address: ChannelAddress, lifetime: TimeInterval) {}
-	func allocateError(code: TURNErrorCode, message: String) {}
+//	func allocate(address: ChannelAddress, lifetime: TimeInterval) {}
+//	func allocateError(code: TURNErrorCode, message: String) {}
 	
 	func refreshed(lifetime: TimeInterval) {}
 	
@@ -273,7 +273,7 @@ public class PeerChannel: PeerChannelCommandProtocol {
 	///
 	
 	public func add(listener: PeerChannelEventListenerProtocol) {
-		if listeners.index(where: { $0 === listener }) != nil {
+		if listeners.index(where: { $0 === listener }) == nil {
 			listeners.append(listener)
 		}
 	}

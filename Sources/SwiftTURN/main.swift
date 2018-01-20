@@ -21,12 +21,19 @@ class HeadlessService: PeerEventProtocol, SignalerEventProtocol {
 			return
 		}
 		
+		print("allocated peer: \(address)")
+		
 		meetingRoom = Signaler(hostServer: "45.32.202.66:8000", delegate: self)
 		meetingRoom?.register(identifier: "skeetsy", channel: address)
 	}
 	
+	func registered(identifier: String) {
+		print("registered \(identifier)")
+	}
+	
 	func discovered(identifier: String, address: ChannelAddress) {
 		
+		print("discovered \(identifier) at \(address)")
 	}
 	
 

@@ -26,7 +26,7 @@ public class Peer: PeerCommandProtocol, PeerChannelEventListenerProtocol {
 	public var transactionId = Data([UInt8](UUID().uuidString.utf8)[0..<12])
 	
 	// communications
-	private var channel: PeerChannelCommandProtocol
+	private var channel: PeerChannel
 	
 	/// Connection addresses
 	public var address: ChannelAddress?
@@ -80,23 +80,14 @@ public class Peer: PeerCommandProtocol, PeerChannelEventListenerProtocol {
 	/// Channel event callbacks
 	///
 	
-	public func bindSuccess() {
-		
-	}
-	
-	public func bindError(code: UInt16, message: String) {
-		print("bind error (\(code)): \(message)")
-		
-	}
-	
-	public func allocateSuccess(address: ChannelAddress, lifetime: TimeInterval) {
+	public func allocate(address: ChannelAddress, lifetime: TimeInterval) {
 		self.address = address
 		channel.setRefreshTimeout(timeout: lifetime)
 		
 		delegate.allocated()
 	}
 	
-	public func allocateError(code: UInt16, message: String) {
+	public func allocateError(code: TURNErrorCode, message: String) {
 		
 		print("allocation error (\(code)): \(message)")
 	}

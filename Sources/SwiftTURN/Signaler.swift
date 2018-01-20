@@ -10,6 +10,7 @@ import Foundation
 
 public protocol SignalerEventProtocol {
 	
+	func registered(identifier: String)
 	func discovered(identifier: String, address: ChannelAddress)
 }
 
@@ -42,8 +43,8 @@ public class Signaler {
 #endif
 		if let url = URL(string: regUrl) {
 			
-			let task = session.dataTask(with: url, completionHandler: { (data, response, error) in
-				// whatevs
+			let task = session.dataTask(with: url, completionHandler: { [weak self] (data, response, error) in
+				self?.delegate.registered(identifier: identifier)
 			})
 			task.resume()
 		}
