@@ -10,8 +10,11 @@ import Foundation
 
 #if os(Linux)
 	import Glibc
+	private let sock_dgram = Int32(SOCK_DGRAM.rawValue)
+
 #else
 	import Darwin.C
+	private let sock_dgram = SOCK_DGRAM
 #endif
 
 enum SocketError: Error {

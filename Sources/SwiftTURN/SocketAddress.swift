@@ -43,7 +43,7 @@ public class SocketAddress {
 		for ifptr in sequence(first: firstAddr, next: { $0.pointee.ifa_next }) {
 			let interface = ifptr.pointee
 			let addrFamily = interface.ifa_addr.pointee.sa_family
-			if addrFamily == AF_INET || addrFamily == AF_INET6 {
+			if addrFamily == sa_family_t(AF_INET) || addrFamily == sa_family_t(AF_INET6) {
 				
 				let name = String(cString: interface.ifa_name)
 				if  name == "en0" {
