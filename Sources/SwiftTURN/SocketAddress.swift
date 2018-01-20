@@ -31,7 +31,7 @@ public class SocketAddress {
 		}
 
 		port = inPort
-		memcpy(&address, host.pointee.h_addr_list![0], Int(host.pointee.h_length))
+		memcpy(&address, host.pointee.h_addr_list[0]!, Int(host.pointee.h_length))
 	}
 	
 	// determine the local address
