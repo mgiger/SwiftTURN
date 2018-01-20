@@ -29,7 +29,14 @@ public class Signaler {
 		let relay = client.relay?.description ?? ""
 		let reflexive = client.reflexive?.description ?? ""
 		let local = client.local?.description ?? ""
+#if os(Linux)
+		let regUrl = String(format: "http://%s/register/%s/%s/%s/%s/",
+							host.cString(using: .utf8), identifier.cString(using: .utf8),
+							relay.cString(using: .utf8), reflexive.cString(using: .utf8),
+							local.cString(using: .utf8))
+#else
 		let regUrl = String(format: "http://%@/register/%@/%@/%@/%@/", host, identifier, relay, reflexive, local)
+#endif
 		if let url = URL(string: regUrl) {
 			
 			let task = session.dataTask(with: url, completionHandler: { (data, response, error) in
@@ -39,20 +46,25 @@ public class Signaler {
 		}
 	}
 	
-	public func unregister(identifier: String) {
-		let regUrl = String(format: "http://%@/unregister/%@/", host, identifier)
-		if let url = URL(string: regUrl) {
-			
-			let task = session.dataTask(with: url, completionHandler: { (data, response, error) in
-				// whatevs
-			})
-			task.resume()
-		}
-	}
+//	public func unregister(identifier: String) {
+//		let regUrl = String(format: "http://%@/unregister/%@/", host, identifier)
+//		if let url = URL(string: regUrl) {
+//
+//			let task = session.dataTask(with: url, completionHandler: { (data, response, error) in
+//				// whatevs
+//			})
+//			task.resume()
+//		}
+//	}
 	
 	public func discover(identifier: String, completion: @escaping (ChannelAddress?) -> Void) {
 		
-		if let url = URL(string: String(format: "http://%@/discover/%@/", host, identifier)) {
+#if os(Linux)
+		let discoverUrl = String(format: "http://%s/discover/%s/", host.cString(using: .utf8), identifier.cString(using: .utf8))
+#else
+		let discoverUrl = String(format: "http://%@/discover/%@/", host, identifier)
+#endif
+		if let url = URL(string: discoverUrl) {
 			
 			let task = session.dataTask(with: url, completionHandler: { (data, response, error) in
 				if error == nil, let data = data {
