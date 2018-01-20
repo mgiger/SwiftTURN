@@ -73,16 +73,8 @@ class ErrorCode: Attribute {
 	
 	init(_ data: Data) {
 		code = data.networkOrderedUInt16(at: 2)
-//		let range = data.startIndex..<data.index(data.startIndex, offsetBy: 4)
-
-//		var start = advance(data.startIndex, 4) // Start at the string's start index
-		var start = data.startIndex.advanced(by: 4)
-		var end = data.endIndex // Take start index and advance 5 characters forward
-		var range: Range<Data.Index> = Range<Data.Index>(start: start,end: end)
-
-		
-//		let range = Range<Int>(data.startIndex.advanced(by: 4), in: data.endIndex)
-		reason = String(bytes: data.subdata(in: range), encoding: .utf8) ?? ""
+//		reason = String(bytes: data[4...], encoding: .utf8) ?? ""
+		reason = ""
 		
 		super.init(.errorCode)
 		body = data
