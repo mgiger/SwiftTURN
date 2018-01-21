@@ -72,7 +72,13 @@ public class Peer: PeerCommandProtocol, PeerChannelEventListenerProtocol {
 	}
 	
 	public func request(peers: [ChannelAddress]) {
-		channel.requestPermission(peerAddresses: peers)
+		channel.requestPermission(addresses: peers)
+		
+		for address in peers {
+			// new transaction ID here?
+			let channel = PeerChannel(address: address, transactionId: transactionId)
+			self.peers.append(channel)
+		}
 	}
 	
 	
@@ -93,12 +99,25 @@ public class Peer: PeerCommandProtocol, PeerChannelEventListenerProtocol {
 	}
 	
 	public func permissionReceived(addresses: [ChannelAddress]) {
-		for address in addresses {
-			// new transaction ID here?
-			let channel = PeerChannel(address: address, transactionId: transactionId)
-			peers.append(channel)
+//		for address in addresses {
+//			// new transaction ID here?
+//			let channel = PeerChannel(address: address, transactionId: transactionId)
+//			peers.append(channel)
+//		}
+		
+		let data = "Testing".data(using: .utf8)!
+		for peer in peers {
+			channel.send(data: data, to: peer.address)
 		}
 	}
+	
+	public func received(data: Data, from: ChannelAddress) {
+		
+		if let str = String(bytes: data, encoding: .utf8) {
+			print("Got Data! \(str)")
+		}
+	}
+
 	
 	public func refresh(lifetime: TimeInterval) {
 		channel.setRefreshTimeout(timeout: lifetime)

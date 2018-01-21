@@ -11,10 +11,10 @@ import Foundation
 public protocol SignalerEventProtocol {
 	
 	func registered(identifier: String)
-	func registerFailed(identifier: String)
+	func registerFailed(identifier: String, message: String)
 	
 	func discovered(identifier: String, address: ChannelAddress)
-	func discoverFailed(identifier: String)
+	func discoverFailed(identifier: String, message: String)
 }
 
 public class Signaler {
@@ -30,9 +30,9 @@ public class Signaler {
 	}
 	
 	public func register(identifier: String, channel: ChannelAddress) {
-		let relay = channel.relay?.description ?? ""
-		let reflexive = channel.reflexive?.description ?? ""
-		let local = channel.local?.description ?? ""
+		let relay = channel.relay?.description ?? "-"
+		let reflexive = channel.reflexive?.description ?? "-"
+		let local = channel.local?.description ?? "-"
 		
 		let regUrl = "http://" + host + "/register/" + identifier + "/" + relay + "/" + reflexive + "/" + local + "/"
 		print("register \(regUrl)")
@@ -41,8 +41,8 @@ public class Signaler {
 			
 			let task = session.dataTask(with: url, completionHandler: { [weak self] (data, response, error) in
 				
-				guard error != nil else {
-					self?.delegate.registerFailed(identifier: identifier)
+				guard error == nil else {
+					self?.delegate.registerFailed(identifier: identifier, message: error?.localizedDescription ?? "no error")
 					return
 				}
 				
@@ -73,7 +73,7 @@ public class Signaler {
 			let task = session.dataTask(with: url, completionHandler: { [weak self] (data, response, error) in
 				
 				guard let data = data, error == nil else {
-					self?.delegate.registerFailed(identifier: identifier)
+					self?.delegate.registerFailed(identifier: identifier, message: error?.localizedDescription ?? "no error")
 					return
 				}
 				
@@ -88,7 +88,7 @@ public class Signaler {
 						self?.delegate.discovered(identifier: identifier, address: peerAddress)
 					}
 				} catch {
-					self?.delegate.registerFailed(identifier: identifier)
+					self?.delegate.registerFailed(identifier: identifier, message: error.localizedDescription)
 				}
 				
 			})

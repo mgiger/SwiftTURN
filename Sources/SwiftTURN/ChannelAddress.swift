@@ -14,6 +14,6 @@ public class ChannelAddress {
 	public var relay: SocketAddress?
 	
 	public var description: String {
-		return "local: \(local?.description ?? ""), reflexive: \(reflexive?.description ?? ""), relay: \(relay?.description ?? "")"
+		return "local: \(local?.description ?? ""), reflexive: \(reflexive?.description ?? ""), relay: \(relay?.description ?? "-")"
 	}
 }

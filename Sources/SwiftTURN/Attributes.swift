@@ -8,8 +8,8 @@
 
 import Foundation
 
-let MagicCookieMSB		= UInt16(0x2112)
 let MagicCookie			= UInt32(0x2112A442)
+let MagicCookieMSB		= UInt16(MagicCookie >> 16)
 
 
 enum AttributeType: UInt16 {
@@ -107,7 +107,8 @@ class MappedAddress: Attribute {
 		address = addr
 		
 		super.init(.mappedAddress)
-		body.networkAppendUInt16(UInt16(0))
+		body.networkAppendUInt8(UInt8(0))
+		body.networkAppendUInt8(UInt8(1))
 		body.networkAppendUInt16(address.port)
 		body.networkAppendUInt32(address.address)
 	}
@@ -136,9 +137,17 @@ class XORMappedAddress: Attribute {
 		super.init(attribute)
 		
 		// xor it as we package it up
-		body.networkAppendUInt16(UInt16(0))
-		body.networkAppendUInt16(address.port ^ MagicCookieMSB)
-		body.networkAppendUInt32(address.address ^ MagicCookie)
+		body.networkAppendUInt8(UInt8(0))
+		body.networkAppendUInt8(UInt8(1))
+		body.nativeAppendUInt16(address.port ^ MagicCookieMSB.bigEndian)
+		body.nativeAppendUInt32(address.address ^ MagicCookie.bigEndian)
+//		body.networkAppendUInt16(address.port ^ MagicCookieMSB)
+//		body.networkAppendUInt32(address.address ^ MagicCookie)
+		
+//		((u16bits*)cfield)[1] = (ca->s4.sin_port) ^ nswap16(mc >> 16);
+//
+//		/* Address */
+//		((u32bits*)cfield)[1] = (ca->s4.sin_addr.s_addr) ^ nswap32(mc);
 	}
 	
 	override public var description: String {
@@ -146,7 +155,7 @@ class XORMappedAddress: Attribute {
 	}
 }
 
-class StringValue: Attribute {
+class StringAttribute: Attribute {
 	
 	let value: String
 	
@@ -166,6 +175,19 @@ class StringValue: Attribute {
 	
 	override public var description: String {
 		return "\(type): \(value)"
+	}
+}
+
+class DataAttribute: Attribute {
+	
+	init(data: Data) {
+		super.init(.data)
+		body = data
+	}
+	
+	override public var description: String {
+		let str = String(bytes: body, encoding: .utf8) ?? "??Unknown??"
+		return "data: \(str)"
 	}
 }
 

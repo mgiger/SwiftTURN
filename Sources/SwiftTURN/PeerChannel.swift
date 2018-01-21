@@ -25,8 +25,16 @@ public protocol PeerChannelCommandProtocol {
 	/// Request permissions for a set of channel addresses
 	///
 	/// - Parameter peerAddresses: The set of addresses we would like permissions to read/write from
-	func requestPermission(peerAddresses: [ChannelAddress])
+	func requestPermission(addresses: [ChannelAddress])
+	
+	/// Send a data packet to a channel address. Try to keep the data small
+	///
+	/// - Parameters:
+	///   - data: Data to send
+	///   - to: ChannelAddress of the recipient
+	func send(data: Data, to: ChannelAddress)
 
+	
 	/// Listener management
 	func add(listener: PeerChannelEventListenerProtocol)
 	func remove(listener: PeerChannelEventListenerProtocol)
@@ -41,15 +49,18 @@ public protocol PeerChannelEventListenerProtocol: class {
 	func bindSuccess()
 	func bindError(code: TURNErrorCode, message: String)
 	
-	// TURN allocation
+	// allocation
 	func allocate(address: ChannelAddress, lifetime: TimeInterval)
 	func allocateError(code: TURNErrorCode, message: String)
 	
-	// STUN refresh
+	// refresh
 	func refreshed(lifetime: TimeInterval)
 	
-	// TURN permission
+	// permission
 	func permissionReceived(addresses: [ChannelAddress])
+	
+	// data
+	func received(data: Data, from: ChannelAddress)
 	
 	func connect()
 	func connectError()
@@ -67,6 +78,9 @@ public extension PeerChannelEventListenerProtocol {
 	func refreshed(lifetime: TimeInterval) {}
 	
 	func permission() {}
+	
+	func dataReceived() {}
+	
 	func connect() {}
 	func connectError() {}
 	func connectStatus() {}
@@ -76,8 +90,9 @@ public extension PeerChannelEventListenerProtocol {
 
 public class PeerChannel: PeerChannelCommandProtocol {
 	
+	public var address: ChannelAddress
+	
 	private var socket: UDPSocket?
-	private var address: ChannelAddress
 	private var transactionId: Data
 	private var listeners = [PeerChannelEventListenerProtocol]()
 	private var listening = false
@@ -100,7 +115,7 @@ public class PeerChannel: PeerChannelCommandProtocol {
 			throw SocketError.badHost
 		}
 		
-		socket = try UDPSocket(address: relayAddress, timeout: 1)
+		socket = try UDPSocket(address: relayAddress, timeout: 5)
 	}
 	
 	public func listenOnSocket() {
@@ -126,6 +141,7 @@ public class PeerChannel: PeerChannelCommandProtocol {
 		
 		DispatchQueue.global().async {
 			
+			var idleCount = 0
 			repeat {
 				
 				// refresh the channel periodically
@@ -142,7 +158,9 @@ public class PeerChannel: PeerChannelCommandProtocol {
 					}
 				} catch SocketError.receiveError {
 					
-					print("Idle...")
+					print("Idle \(idleCount)...")
+					idleCount = idleCount + 1
+					
 				} catch {
 
 					print("Socket exception: \(error.localizedDescription)")
@@ -169,9 +187,12 @@ public class PeerChannel: PeerChannelCommandProtocol {
 	/// channel commands
 	///
 	
+	public func requestPermission(addresses: [ChannelAddress]) {
+		try? send(request: CreatePermissionRequest(transactionId, addresses: addresses))
+	}
 	
-	public func requestPermission(peerAddresses: [ChannelAddress]) {
-		try? send(request: CreatePermission(transactionId, peerAddresses: peerAddresses))
+	public func send(data: Data, to: ChannelAddress) {
+		try? send(request: DataIndicationRequest(transactionId, data: data, to: to))
 	}
 	
 
@@ -199,6 +220,7 @@ public class PeerChannel: PeerChannelCommandProtocol {
 			
 			// determine packet type
 			let messageType = packet.networkOrderedUInt16(at: 0)
+			print("packet 0x\(String(format:"%04x", messageType))")
 			if let responseType = ResponseType(rawValue: messageType) {
 				
 				// dispatch packet
@@ -224,14 +246,21 @@ public class PeerChannel: PeerChannelCommandProtocol {
 					allocated = false
 					let allocError = AllocateErrorResponse(body)
 					listeners.forEach { $0.allocateError(code: allocError.code, message: allocError.reason) }
-
-				case .permission:
-					let permissionResponse = CreatePermissionRespons(body)
-					listeners.forEach { $0.permissionReceived(addresses: permissionResponse.addresses) }
 					
 				case .refresh:
 					let refresh = RefreshResponse(body)
 					listeners.forEach { $0.refreshed(lifetime: refresh.lifetime) }
+					
+				case .permission:
+					let permissionResponse = CreatePermissionResponse(body)
+					listeners.forEach { $0.permissionReceived(addresses: permissionResponse.addresses) }
+					
+				case .dataIndication:
+					print("dataIndication received")
+					let dataResponse = DataIndicationResponse(body)
+					if let body = dataResponse.data?.body {
+						listeners.forEach { $0.received(data: body, from: dataResponse.address) }
+					}
 					
 				case .connect:
 //					let connect = ConnectResponse(body)
@@ -252,6 +281,10 @@ public class PeerChannel: PeerChannelCommandProtocol {
 		}
 	}
 	
+	
+	///
+	/// Internal commands
+	///
 	
 	/// Allocate an entry on the server
 	///

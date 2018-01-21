@@ -69,7 +69,7 @@ class AllocateRequest: Request {
 		
 		attributes = [
 			RequestedTransport(),
-			StringValue(.software, value: "Skeeter 0.1"),
+			StringAttribute(.software, value: "Skeeter 0.1"),
 			Lifetime(seconds: UInt32(lifetime))
 		]
 	}
@@ -86,13 +86,13 @@ class RefreshRequest: Request {
 	}
 }
 
-class CreatePermission: Request {
+class CreatePermissionRequest: Request {
 
-	init(_ transactionId: Data, peerAddresses: [ChannelAddress]) {
+	init(_ transactionId: Data, addresses: [ChannelAddress]) {
 		super.init(transactionId, method: .createPermission)
 		
 		// send the relay addresses of the peers we want permissions for
-		attributes = peerAddresses.flatMap {
+		attributes = addresses.flatMap {
 			if let relay = $0.relay {
 				return XORMappedAddress(attribute: .xorPeerAddress, addr: relay)
 			} else {
@@ -103,17 +103,24 @@ class CreatePermission: Request {
 }
 
 
-//class DataIndication: Request {
-//
-//	init(_ transactionId: Data, peerAddress: ChannelAddress) {
-//		super.init(transactionId, method: .sendIndication)
-//
-//		// send the relay addresses of the peers we want permissions for
-//		attributes = [
-//			XORMappedAddress(attribute: .xorPeerAddress, addr: peerAddress.relay)
-//		]
-//	}
-//}
+class DataIndicationRequest: Request {
+
+	init(_ transactionId: Data, data: Data, to: ChannelAddress) {
+		super.init(transactionId, method: .sendIndication)
+		
+		guard let addr = to.reflexive else {
+			print("unbound relay address in data send")
+			return
+		}
+
+		// send the relay addresses of the peers we want permissions for
+		attributes = [
+			XORMappedAddress(attribute: .xorPeerAddress, addr: addr),
+			DataAttribute(data: data),
+//			DontFragment()
+		]
+	}
+}
 
 //class SetActiveDestination: Request {
 //	

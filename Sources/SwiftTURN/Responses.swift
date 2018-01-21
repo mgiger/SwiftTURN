@@ -104,7 +104,7 @@ internal class Response {
 			case .lifetime:					return (type, Lifetime(data))
 			case .xorPeerAddress:			break
 			case .data:						break
-			case .realm:					return (type, StringValue(.realm, data: data))
+			case .realm:					return (type, StringAttribute(.realm, data: data))
 			case .nonce:					break
 			case .xorRelayedAddress:		return (type, XORMappedAddress(attribute: .xorRelayedAddress, data: data))
 			case .addressFamily:			break
@@ -113,7 +113,7 @@ internal class Response {
 			case .dontFragment:				break
 			case .xorMappedAddress:			return (type, XORMappedAddress(attribute: .xorMappedAddress, data: data))
 			case .reservationToken:			break
-			case .software:					return (type, StringValue(.software, data: data))
+			case .software:					return (type, StringAttribute(.software, data: data))
 			case .alternateServer:			break
 			case .fingerprint:				break
 			case .responseOrigin:			return (type, MappedAddress(data))
@@ -166,7 +166,7 @@ class AllocateResponse: Response {
 		if let lt: Lifetime = attribute(type: .lifetime) {
 			lifetime = TimeInterval(lt.lifetime)
 		}
-		if let sw: StringValue = attribute(type: .software) {
+		if let sw: StringAttribute = attribute(type: .software) {
 			software = sw.value
 		}
 	}
@@ -200,7 +200,7 @@ class RefreshResponse: Response {
 	}
 }
 
-class CreatePermissionRespons: Response {
+class CreatePermissionResponse: Response {
 	
 	var addresses = [ChannelAddress]()
 	
@@ -208,6 +208,22 @@ class CreatePermissionRespons: Response {
 		super.init(.permission, body: body)
 		
 		addresses = attributes(typed: .xorPeerAddress)
+	}
+}
+
+class DataIndicationResponse: Response {
+	
+	var address = ChannelAddress()
+	var data: DataAttribute?
+	
+	init(_ body: Data) {
+		super.init(.dataIndication, body: body)
+	
+		if let addr: XORMappedAddress = attribute(type: .xorPeerAddress) {
+			address.relay = addr.address
+		}
+
+		data = attribute(type: .data)
 	}
 }
 
